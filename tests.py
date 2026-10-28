@@ -7,7 +7,7 @@ from datetime import date
 
 from address_book import AddressBook, Birthday, Phone, Record
 from main import add_birthday, add_contact, birthdays, change_contact, show_birthday, show_phone
-from storage import load_data, save_data
+from storage import DEFAULT_FILENAME, StorageError, load_data, save_data
 
 
 def book_with_birthdays(items):
@@ -146,6 +146,31 @@ class StorageTest(unittest.TestCase):
         self.assertEqual(len(book), 0)
         self.assertTrue(os.path.exists(f"{self.filename}.corrupted"))
         self.assertFalse(os.path.exists(self.filename))
+
+    def test_empty_file_is_treated_as_damaged(self):
+        open(self.filename, "wb").close()
+        self.assertEqual(len(load_data(self.filename)), 0)
+        self.assertTrue(os.path.exists(f"{self.filename}.corrupted"))
+
+    def test_other_pickled_object_is_kept_aside(self):
+        save_data([1, 2], self.filename)
+        self.assertEqual(len(load_data(self.filename)), 0)
+        self.assertTrue(os.path.exists(f"{self.filename}.corrupted"))
+
+    def test_unreadable_path_raises_storage_error(self):
+        os.mkdir(self.filename)  # a folder where the file should be
+        with self.assertRaises(StorageError):
+            load_data(self.filename)
+
+    def test_failed_save_raises_and_leaves_no_temp_file(self):
+        missing = os.path.join(self.folder.name, "no-such-folder", "addressbook.pkl")
+        with self.assertRaises(StorageError):
+            save_data(AddressBook(), missing)
+        self.assertFalse(os.path.exists(f"{missing}.tmp"))
+
+    def test_default_file_is_next_to_the_program(self):
+        import storage
+        self.assertEqual(os.path.dirname(DEFAULT_FILENAME), os.path.dirname(os.path.abspath(storage.__file__)))
 
 
 if __name__ == "__main__":

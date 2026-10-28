@@ -3,14 +3,15 @@
 Commands: hello, add, change, phone, all, add-birthday, show-birthday,
 birthdays, close / exit. Ctrl+C or Ctrl+D also exits.
 
-The address book is loaded from addressbook.pkl on start and saved back on exit.
+The address book is loaded from addressbook.pkl (next to this file) on start
+and saved back on exit.
 """
 
 from datetime import datetime
 from functools import wraps
 
 from address_book import DATE_FORMAT, AddressBook, Record
-from storage import load_data, save_data
+from storage import StorageError, load_data, save_data
 
 
 def input_error(func):
@@ -125,7 +126,13 @@ def birthdays(args, book: AddressBook):
 
 
 def main():
-    book = load_data()
+    try:
+        book = load_data()
+    except StorageError as error:
+        print(error)
+        print("The bot was not started, so the saved contacts are not overwritten.")
+        return
+
     print("Welcome to the assistant bot!")
     if book.data:
         print(f"Loaded {len(book.data)} contact(s) from the previous session.")
@@ -133,7 +140,10 @@ def main():
         run_bot(book)
     finally:
         # Runs on close/exit, Ctrl+C, Ctrl+D and on an unexpected error.
-        save_data(book)
+        try:
+            save_data(book)
+        except StorageError as error:
+            print(error)
 
 
 def run_bot(book: AddressBook):
